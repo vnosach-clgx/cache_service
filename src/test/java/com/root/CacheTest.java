@@ -14,7 +14,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 
-import static java.time.temporal.ChronoUnit.NANOS;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -28,7 +27,7 @@ class CacheTest {
 
     @Test
     void create_lfuCache_successful() {
-        Cache cache = CacheBuilder.ofLfu()
+        Cache cache = CacheBuilder.lfu()
                 .maximumSize(3)
                 .removalListener(n -> log.info("was removed {}", n))
                 .build();
@@ -52,7 +51,7 @@ class CacheTest {
 
     @Test
     void create_lruCache_successful() {
-        Cache cache = CacheBuilder.ofLru()
+        Cache cache = CacheBuilder.lru()
                 .maximumSize(2)
                 .removalListener(n -> log.info("was removed {}", n))
                 .build();
@@ -69,9 +68,13 @@ class CacheTest {
 
     @Test
     void cacheExpireAfter_successful() {
-        Cache cache = CacheBuilder.ofLru()
+        RemovalListener mockListener = mock(RemovalListener.class);
+        doNothing().when(mockListener).onRemoval(any());
+
+        Cache cache = CacheBuilder.lru()
                 .maximumSize(3)
                 .removalListener(n -> log.info("was removed {}", n))
+                .removalListener(mockListener)
                 .expireAfterAccess(2, SECONDS)
                 .build();
         cache.put(1, 1);
@@ -83,6 +86,8 @@ class CacheTest {
         await().pollDelay(3000, MILLISECONDS).untilAsserted(() -> assertThat(cache.get(2)).isNull());
         assertThat(cache.get(3)).isEqualTo(3);
         await().pollDelay(3000, MILLISECONDS).untilAsserted(() -> assertThat(cache.get(3)).isNull());
+
+        verify(mockListener, times(3)).onRemoval(any());
     }
 
     @Test
@@ -90,7 +95,7 @@ class CacheTest {
         RemovalListener removalListener = mock(RemovalListener.class);
         doNothing().when(removalListener).onRemoval(any());
 
-        Cache cache = CacheBuilder.ofLru()
+        Cache cache = CacheBuilder.lru()
                 .maximumSize(1)
                 .expireAfterAccess(2000, MILLISECONDS)
                 .removalListener(removalListener)
@@ -105,8 +110,7 @@ class CacheTest {
     @RepeatedTest(20)
     void verify_statistic() {
         EnhancedRandom random = EnhancedRandomBuilder.aNewEnhancedRandom();
-        Cache cache = CacheBuilder.ofLfu()
-                .removalListener(n -> log.info("was removed {}", n))
+        Cache cache = CacheBuilder.lfu()
                 .maximumSize(450)
                 .build();
         random.objects(TestObj.class, 500).forEach(o -> cache.put(o, o));

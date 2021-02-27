@@ -17,13 +17,13 @@ public class CacheBuilder {
     private CACHE_TYPE cacheType;
     private final List<RemovalListener> removalListeners = new ArrayList<>();
 
-    public static CacheBuilder ofLru() {
+    public static CacheBuilder lru() {
         CacheBuilder cacheBuilder = new CacheBuilder();
         cacheBuilder.cacheType = LRU;
         return cacheBuilder;
     }
 
-    public static CacheBuilder ofLfu() {
+    public static CacheBuilder lfu() {
         CacheBuilder cacheBuilder = new CacheBuilder();
         cacheBuilder.cacheType = LFU;
         return cacheBuilder;
