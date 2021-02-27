@@ -23,14 +23,15 @@ public class Cache {
     private final CacheStatistic cacheStatistic = new CacheStatistic();
     private final Lock lock = new ReentrantLock();
 
-    private final List<CacheEvent> cacheEvents = new LinkedList();
+    private final List<RemovalListener> removalListeners;
     private final long expiryInMillis;
     private final long maximumSize;
 
     protected Cache(CacheBuilder cacheBuilder) {
-        this.cacheMap = cacheBuilder.getCache_type().equals(LRU) ? new LruHashMap() : new LfuHashMap();
+        this.cacheMap = cacheBuilder.getCacheType().equals(LRU) ? new LruHashMap() : new LfuHashMap();
         this.expiryInMillis = cacheBuilder.getExpireAfter();
         this.maximumSize = cacheBuilder.getMaximumSize();
+        this.removalListeners = cacheBuilder.getRemovalListeners();
         if (this.expiryInMillis > 0) {
             Executors.newScheduledThreadPool(2).scheduleAtFixedRate(this::cleanExpired, 0, expiryInMillis / 2, MILLISECONDS);
         }
@@ -55,19 +56,14 @@ public class Cache {
         long currentTimeMillis = System.currentTimeMillis();
         cacheMap.entrySet().removeIf(entry -> {
             long lastAccessTime = entry.getValue().getLastAccessTime();
-            boolean isExpired = lastAccessTime > 0 && expiryInMillis > 0 && currentTimeMillis > (lastAccessTime + expiryInMillis);
+            boolean isExpired = lastAccessTime > 0 && currentTimeMillis > (lastAccessTime + expiryInMillis);
             if (isExpired) {
-                log.info("DELETING {}", entry.getValue());
+                removalListeners.forEach(removalListener -> removalListener.onRemoval(Map.entry(entry.getKey(), entry.getValue().getValue())));
                 cacheStatistic.addEviction();
             }
             return isExpired;
         });
     }
-
-    void addEvent(CacheEvent cacheEvent) {
-        cacheEvents.add(cacheEvent);
-    }
-
 
     @Getter
     @Setter
@@ -89,11 +85,19 @@ public class Cache {
     }
 
     private class LruHashMap extends LinkedHashMap<Object, ValueWrapper> {
+
+        @Override
+        public ValueWrapper remove(Object key) {
+            Object value = super.get(key).getValue();
+            removalListeners.forEach(removalListener -> removalListener.onRemoval(Map.entry(key, value)));
+            return super.remove(key);
+        }
+
         @Override
         protected boolean removeEldestEntry(Map.Entry eldest) {
             boolean isEldest = size() > maximumSize;
             if (isEldest) {
-                log.info("ELDEST {}", eldest.getValue());
+                removalListeners.forEach(removalListener -> removalListener.onRemoval(eldest));
                 cacheStatistic.addEviction();
             }
             return isEldest;
@@ -115,6 +119,7 @@ public class Cache {
         @Override
         public ValueWrapper put(Object key, ValueWrapper value) {
             if (size() + 1 > maximumSize) {
+                removalListeners.forEach(removalListener -> removalListener.onRemoval(Map.entry(key, value.getValue())));
                 remove(keyAccessQueue.poll());
                 cacheStatistic.addEviction();
             }

@@ -2,22 +2,26 @@ package com.root;
 
 import lombok.Getter;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Getter
 public class CacheBuilder {
 
     private long maximumSize = 100_000;
     private long expireAfter;
-    private CACHE_TYPE cache_type;
+    private CACHE_TYPE cacheType;
+    private final List<RemovalListener> removalListeners = new ArrayList<>();
 
     public static CacheBuilder ofLru() {
         CacheBuilder cacheBuilder = new CacheBuilder();
-        cacheBuilder.cache_type = CACHE_TYPE.LRU;
+        cacheBuilder.cacheType = CACHE_TYPE.LRU;
         return cacheBuilder;
     }
 
     public static CacheBuilder ofLfu() {
         CacheBuilder cacheBuilder = new CacheBuilder();
-        cacheBuilder.cache_type = CACHE_TYPE.LFU;
+        cacheBuilder.cacheType = CACHE_TYPE.LFU;
         return cacheBuilder;
     }
 
@@ -37,17 +41,8 @@ public class CacheBuilder {
         return this;
     }
 
-    public CacheBuilder evictionPolicy(EvictionEvent cacheEvent) {
-        return this;
-    }
-
-    public CacheBuilder custom(long maximumSize) {
-        this.maximumSize = maximumSize;
-        return this;
-    }
-
-    public CacheBuilder removalListener(long maximumSize) {
-        this.maximumSize = maximumSize;
+    public CacheBuilder removalListener(RemovalListener removalListener) {
+        this.removalListeners.add(removalListener);
         return this;
     }
 

@@ -74,6 +74,28 @@ class CacheTest {
         assertThat(cache.get(3)).isNull();
     }
 
+    @Test
+    void removalListener_test() throws InterruptedException {
+        RemovalListener removalListener = n -> log.info("REMOVAL LISTENER!!! {}, {}", n.getKey(), n.getValue());
+
+        Cache cache = CacheBuilder.ofLru()
+                .maximumSize(3)
+                .expireAfterAccess(2000)
+                .removalListener(removalListener)
+                .build();
+        cache.put(1, 1);
+        cache.put(2, 2);
+        cache.put(3, 3);
+        assertThat(cache.get(1)).isEqualTo(1);
+        assertThat(cache.get(2)).isEqualTo(2);
+        Thread.sleep(3000);
+        assertThat(cache.get(1)).isNull();
+        assertThat(cache.get(2)).isNull();
+        assertThat(cache.get(3)).isEqualTo(3);
+        Thread.sleep(3000);
+        assertThat(cache.get(3)).isNull();
+    }
+
     @RepeatedTest(20)
     void verify_statistic() {
         EnhancedRandom random = EnhancedRandomBuilder.aNewEnhancedRandom();
