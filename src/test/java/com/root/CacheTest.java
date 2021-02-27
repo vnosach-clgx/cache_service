@@ -43,10 +43,17 @@ class CacheTest {
         cache.get(3);
         cache.get(3);
         cache.put(4, 4);
+
         assertThat(cache.get(1)).isEqualTo(1);
         assertThat(cache.get(2)).isNull();
         assertThat(cache.get(3)).isEqualTo(3);
         assertThat(cache.get(4)).isEqualTo(4);
+
+        cache.put(5, 5);
+        assertThat(cache.get(4)).isNull();
+        cache.put(6, 6);
+        assertThat(cache.get(5)).isNull();
+
     }
 
     @Test

@@ -1,16 +1,13 @@
 package com.root;
 
 import com.root.util.StopWatcher;
+import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Queue;
+import java.util.*;
 import java.util.concurrent.Executors;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -44,7 +41,7 @@ public class Cache {
 
     public Object get(Object key) {
         lock.lock();
-        Object result = ofNullable(this.cacheStorage.get(key)).map(ValueWrapper::getValue).orElse(null);
+        Object result = ofNullable(this.cacheStorage.get(key)).map(ValueWrapper::unwrap).orElse(null);
         lock.unlock();
         return result;
     }
@@ -62,7 +59,7 @@ public class Cache {
             long lastAccessTime = entry.getValue().getLastAccessTime();
             boolean isExpired = lastAccessTime > 0 && currentTimeMillis() > (lastAccessTime + expiryInMillis);
             if (isExpired) {
-                notifyRemovalListeners(Map.entry(entry.getKey(), entry.getValue().getValue()));
+                notifyRemovalListeners(Map.entry(entry.getKey(), entry.getValue().unwrap()));
             }
             return isExpired;
         });
@@ -78,7 +75,7 @@ public class Cache {
         protected boolean removeEldestEntry(Map.Entry<Object, ValueWrapper> eldest) {
             boolean isEldest = size() > maximumSize;
             if (isEldest) {
-                notifyRemovalListeners(Map.entry(eldest.getKey(), eldest.getValue().getValue()));
+                notifyRemovalListeners(Map.entry(eldest.getKey(), eldest.getValue().unwrap()));
             }
             return isEldest;
         }
@@ -87,24 +84,38 @@ public class Cache {
     @EqualsAndHashCode(callSuper = false)
     private class LfuHashMap extends LinkedHashMap<Object, ValueWrapper> {
 
-        private final Queue<Object> keyAccessQueue = new LinkedBlockingQueue<>();
+        private final Queue<PriorityKey> keyAccessQueue = new PriorityQueue<>(Comparator.comparing(PriorityKey::getAccessCounter));
 
         @Override
         public ValueWrapper get(Object key) {
             ValueWrapper valueWrapper = super.get(key);
-            keyAccessQueue.remove(key);
-            keyAccessQueue.add(key);
+            ofNullable(valueWrapper).map(ValueWrapper::getAccessCounter)
+                    .ifPresent(accessCounter -> {
+                        //TODO bad complexity. Need to refactor using hashes
+                        keyAccessQueue.remove(new PriorityKey(0L, key));
+                        keyAccessQueue.add(new PriorityKey(accessCounter + 1, key));
+                    });
+
             return valueWrapper;
         }
 
         @Override
         public ValueWrapper put(Object key, ValueWrapper value) {
             if (size() + 1 > maximumSize) {
-                notifyRemovalListeners(Map.entry(key, value.getValue()));
-                remove(keyAccessQueue.poll());
+                PriorityKey poll = keyAccessQueue.poll();
+                notifyRemovalListeners(Map.entry(poll.getKey(), get(poll.getKey()).unwrap()));
+                remove(poll.getKey());
             }
-            keyAccessQueue.add(key);
+            keyAccessQueue.add(new PriorityKey(0L, key));
             return super.put(key, value);
+        }
+
+        @Getter
+        @EqualsAndHashCode(exclude = "accessCounter")
+        @AllArgsConstructor
+        private class PriorityKey {
+            private final Long accessCounter;
+            private final Object key;
         }
     }
 }

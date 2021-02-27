@@ -1,22 +1,23 @@
 package com.root;
 
 import lombok.Getter;
-import lombok.Setter;
 import lombok.ToString;
 
-@Getter
-@Setter
 @ToString
 class ValueWrapper {
-    private Object value;
+    private final Object value;
+    @Getter
     private long lastAccessTime;
+    @Getter
+    private long accessCounter;
 
     public ValueWrapper(Object value) {
         this.value = value;
     }
 
-    public Object getValue() {
+    public Object unwrap() {
         this.lastAccessTime = System.currentTimeMillis();
+        this.accessCounter++;
         return value;
     }
 }
