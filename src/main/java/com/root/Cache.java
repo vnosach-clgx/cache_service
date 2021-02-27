@@ -1,15 +1,20 @@
 package com.root;
 
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.*;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Queue;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 import static com.root.CacheBuilder.CACHE_TYPE.LRU;
+import static java.lang.System.currentTimeMillis;
 import static java.util.Optional.ofNullable;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
@@ -30,7 +35,7 @@ public class Cache {
         this.expiryInMillis = cacheBuilder.getExpireAfter();
         this.maximumSize = cacheBuilder.getMaximumSize();
         this.removalListeners = cacheBuilder.getRemovalListeners();
-        this.removalListeners.add(n -> cacheStatistic.addEviction());
+        this.removalListeners.add(n -> cacheStatistic.increaseEvictionCount());
         if (this.expiryInMillis > 0) {
             Executors.newScheduledThreadPool(2).scheduleAtFixedRate(this::cleanExpired, 0, expiryInMillis / 2, MILLISECONDS);
         }
@@ -38,24 +43,23 @@ public class Cache {
 
     public Object get(Object key) {
         lock.lock();
-        Optional<ValueWrapper> result = ofNullable(this.cacheMap.get(key));
+        Object result = ofNullable(this.cacheMap.get(key)).map(ValueWrapper::getValue).orElse(null);
         lock.unlock();
-        return result.map(ValueWrapper::getValue).orElse(null);
+        return result;
     }
 
     public void put(Object key, Object value) {
         lock.lock();
         StopWatcher started = StopWatcher.createStarted();
         this.cacheMap.put(key, new ValueWrapper(value));
-        cacheStatistic.addTimePutting(started.stopAndGet());
+        cacheStatistic.puttingDuration(started.stopAndGet());
         lock.unlock();
     }
 
     private void cleanExpired() {
-        long currentTimeMillis = System.currentTimeMillis();
         cacheMap.entrySet().removeIf(entry -> {
             long lastAccessTime = entry.getValue().getLastAccessTime();
-            boolean isExpired = lastAccessTime > 0 && currentTimeMillis > (lastAccessTime + expiryInMillis);
+            boolean isExpired = lastAccessTime > 0 && currentTimeMillis() > (lastAccessTime + expiryInMillis);
             if (isExpired) {
                 notifyRemovalListeners(Map.entry(entry.getKey(), entry.getValue().getValue()));
             }
@@ -70,22 +74,16 @@ public class Cache {
     private class LruHashMap extends LinkedHashMap<Object, ValueWrapper> {
 
         @Override
-        public ValueWrapper remove(Object key) {
-            Object value = super.get(key).getValue();
-            notifyRemovalListeners(Map.entry(key, value));
-            return super.remove(key);
-        }
-
-        @Override
-        protected boolean removeEldestEntry(Map.Entry eldest) {
+        protected boolean removeEldestEntry(Map.Entry<Object, ValueWrapper> eldest) {
             boolean isEldest = size() > maximumSize;
             if (isEldest) {
-                notifyRemovalListeners(eldest);
+                notifyRemovalListeners(Map.entry(eldest.getKey(), eldest.getValue().getValue()));
             }
             return isEldest;
         }
     }
 
+    @EqualsAndHashCode(callSuper = false)
     private class LfuHashMap extends LinkedHashMap<Object, ValueWrapper> {
 
         private final Queue<Object> keyAccessQueue = new LinkedBlockingQueue<>();

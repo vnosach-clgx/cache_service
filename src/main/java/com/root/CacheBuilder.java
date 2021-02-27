@@ -6,6 +6,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import static com.root.CacheBuilder.CACHE_TYPE.LFU;
+import static com.root.CacheBuilder.CACHE_TYPE.LRU;
+
 @Getter
 public class CacheBuilder {
 
@@ -16,13 +19,13 @@ public class CacheBuilder {
 
     public static CacheBuilder ofLru() {
         CacheBuilder cacheBuilder = new CacheBuilder();
-        cacheBuilder.cacheType = CACHE_TYPE.LRU;
+        cacheBuilder.cacheType = LRU;
         return cacheBuilder;
     }
 
     public static CacheBuilder ofLfu() {
         CacheBuilder cacheBuilder = new CacheBuilder();
-        cacheBuilder.cacheType = CACHE_TYPE.LFU;
+        cacheBuilder.cacheType = LFU;
         return cacheBuilder;
     }
 

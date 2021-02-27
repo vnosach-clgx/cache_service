@@ -4,6 +4,7 @@ import io.github.benas.randombeans.EnhancedRandomBuilder;
 import io.github.benas.randombeans.api.EnhancedRandom;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.RepeatedTest;
 import org.junit.jupiter.api.Test;
@@ -29,6 +30,7 @@ class CacheTest {
     void create_lfuCache_successful() {
         Cache cache = CacheBuilder.ofLfu()
                 .maximumSize(3)
+                .removalListener(n -> log.info("was removed {}", n))
                 .build();
         cache.put(1, 1);
         cache.put(2, 2);
@@ -52,6 +54,7 @@ class CacheTest {
     void create_lruCache_successful() {
         Cache cache = CacheBuilder.ofLru()
                 .maximumSize(2)
+                .removalListener(n -> log.info("was removed {}", n))
                 .build();
         cache.put(1, 1);
         cache.put(2, 2);
@@ -68,6 +71,7 @@ class CacheTest {
     void cacheExpireAfter_successful() {
         Cache cache = CacheBuilder.ofLru()
                 .maximumSize(3)
+                .removalListener(n -> log.info("was removed {}", n))
                 .expireAfterAccess(2, SECONDS)
                 .build();
         cache.put(1, 1);
@@ -102,6 +106,7 @@ class CacheTest {
     void verify_statistic() {
         EnhancedRandom random = EnhancedRandomBuilder.aNewEnhancedRandom();
         Cache cache = CacheBuilder.ofLfu()
+                .removalListener(n -> log.info("was removed {}", n))
                 .maximumSize(450)
                 .build();
         random.objects(TestObj.class, 500).forEach(o -> cache.put(o, o));
@@ -113,12 +118,13 @@ class CacheTest {
         log.info("Average Time Putting {}", actual.getAverageTimePutting());
         assertThat(actual).usingRecursiveComparison().ignoringFields("averageTimePutting").isEqualTo(expected);
         assertThat(actual.getAverageTimePutting().toNanos()).isNotNegative();
-        assertThat(actual.getAverageTimePutting()).isLessThan(Duration.of(3000, NANOS));
+        assertThat(actual.getAverageTimePutting()).isLessThan(Duration.of(1, ChronoUnit.MILLIS));
     }
 
 
     @RequiredArgsConstructor
     @Getter
+    @ToString
     public static class TestObj {
         private final String testField;
     }

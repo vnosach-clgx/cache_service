@@ -10,7 +10,6 @@ import lombok.ToString;
 class ValueWrapper {
     private Object value;
     private long lastAccessTime;
-    private long accessCount;
 
     public ValueWrapper(Object value) {
         this.value = value;
@@ -18,7 +17,6 @@ class ValueWrapper {
 
     public Object getValue() {
         this.lastAccessTime = System.currentTimeMillis();
-        this.accessCount++;
         return value;
     }
 }

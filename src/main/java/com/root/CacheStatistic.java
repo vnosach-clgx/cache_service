@@ -16,12 +16,12 @@ public class CacheStatistic {
     private long addCount;
     private long evictionsCount;
 
-    public void addTimePutting(Duration stopAndGet) {
-        this.averageTimePutting = averageTimePutting.multipliedBy(addCount).plus(stopAndGet).dividedBy(addCount + 1);
-        this.addCount = addCount + 1;
+    public void puttingDuration(Duration lastPutDuration) {
+        this.averageTimePutting = averageTimePutting.multipliedBy(addCount).plus(lastPutDuration).dividedBy(addCount + 1);
+        this.addCount++;
     }
 
-    public void addEviction() {
+    public void increaseEvictionCount() {
         this.evictionsCount++;
     }
 }
