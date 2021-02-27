@@ -105,9 +105,9 @@ public class Cache {
         @Override
         public ValueWrapper put(Object key, ValueWrapper value) {
             if (size() + 1 > maximumSize) {
-                PriorityKey poll = keyAccessQueue.last();
-                notifyRemovalListeners(Map.entry(poll.getKey(), get(poll.getKey()).unwrap()));
-                remove(poll.getKey());
+                PriorityKey rarelyRequestedKey = keyAccessQueue.pollLast();
+                notifyRemovalListeners(Map.entry(rarelyRequestedKey.getKey(), super.get(rarelyRequestedKey.getKey()).unwrap()));
+                remove(rarelyRequestedKey.getKey());
             }
             keyAccessQueue.add(new PriorityKey(0L, key));
             return super.put(key, value);
