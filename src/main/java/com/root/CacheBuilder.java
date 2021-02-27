@@ -4,6 +4,7 @@ import lombok.Getter;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 @Getter
 public class CacheBuilder {
@@ -33,11 +34,11 @@ public class CacheBuilder {
         return this;
     }
 
-    public CacheBuilder expireAfterAccess(long expireAfter) {
+    public CacheBuilder expireAfterAccess(long expireAfter, TimeUnit timeUnit) {
         if (expireAfter <= 0) {
          throw new IllegalArgumentException("Expire after value should be grater than 0");
         }
-        this.expireAfter = expireAfter;
+        this.expireAfter = timeUnit.toMillis(expireAfter);
         return this;
     }
 

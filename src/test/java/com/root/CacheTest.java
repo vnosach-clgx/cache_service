@@ -10,7 +10,10 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -58,22 +61,20 @@ class CacheTest {
     }
 
     @Test
-    void cacheExpireAfter_successful() throws InterruptedException {
+    void cacheExpireAfter_successful() {
         Cache cache = CacheBuilder.ofLru()
                 .maximumSize(3)
-                .expireAfterAccess(2000)
+                .expireAfterAccess(2, SECONDS)
                 .build();
         cache.put(1, 1);
         cache.put(2, 2);
         cache.put(3, 3);
         assertThat(cache.get(1)).isEqualTo(1);
         assertThat(cache.get(2)).isEqualTo(2);
-        Thread.sleep(3100);
-        assertThat(cache.get(1)).isNull();
-        assertThat(cache.get(2)).isNull();
+        await().pollDelay(3000, MILLISECONDS).untilAsserted(() -> assertThat(cache.get(1)).isNull());
+        await().pollDelay(3000, MILLISECONDS).untilAsserted(() -> assertThat(cache.get(2)).isNull());
         assertThat(cache.get(3)).isEqualTo(3);
-        Thread.sleep(3100);
-        assertThat(cache.get(3)).isNull();
+        await().pollDelay(3000, MILLISECONDS).untilAsserted(() -> assertThat(cache.get(3)).isNull());
     }
 
     @Test
@@ -83,7 +84,7 @@ class CacheTest {
 
         Cache cache = CacheBuilder.ofLru()
                 .maximumSize(1)
-                .expireAfterAccess(2000)
+                .expireAfterAccess(2000, MILLISECONDS)
                 .removalListener(removalListener)
                 .build();
         cache.put(1, 1);
