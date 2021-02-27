@@ -1,5 +1,9 @@
 package com.root;
 
+import java.time.Duration;
+
+import static java.time.temporal.ChronoUnit.NANOS;
+
 public class StopWatcher {
     private final long start;
 
@@ -8,10 +12,10 @@ public class StopWatcher {
     }
 
     public static StopWatcher createStarted() {
-        return new StopWatcher(System.currentTimeMillis());
+        return new StopWatcher(System.nanoTime());
     }
 
-    public long stopAndGet(){
-        return System.currentTimeMillis() - start;
+    public Duration stopAndGet(){
+        return Duration.of(System.nanoTime() - start, NANOS);
     }
 }

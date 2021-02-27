@@ -10,6 +10,10 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
+
+import static java.time.temporal.ChronoUnit.NANOS;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -108,8 +112,8 @@ class CacheTest {
         expected.setAddCount(500);
         log.info("Average Time Putting {}", actual.getAverageTimePutting());
         assertThat(actual).usingRecursiveComparison().ignoringFields("averageTimePutting").isEqualTo(expected);
-        assertThat(actual.getAverageTimePutting()).isNotNegative();
-        assertThat(actual.getAverageTimePutting()).isLessThan(20);
+        assertThat(actual.getAverageTimePutting().toNanos()).isNotNegative();
+        assertThat(actual.getAverageTimePutting()).isLessThan(Duration.of(3000, NANOS));
     }
 
 

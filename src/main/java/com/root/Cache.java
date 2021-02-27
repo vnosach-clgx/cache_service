@@ -1,8 +1,6 @@
 package com.root;
 
 import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.*;
@@ -32,6 +30,7 @@ public class Cache {
         this.expiryInMillis = cacheBuilder.getExpireAfter();
         this.maximumSize = cacheBuilder.getMaximumSize();
         this.removalListeners = cacheBuilder.getRemovalListeners();
+        this.removalListeners.add(n -> cacheStatistic.addEviction());
         if (this.expiryInMillis > 0) {
             Executors.newScheduledThreadPool(2).scheduleAtFixedRate(this::cleanExpired, 0, expiryInMillis / 2, MILLISECONDS);
         }
@@ -58,30 +57,14 @@ public class Cache {
             long lastAccessTime = entry.getValue().getLastAccessTime();
             boolean isExpired = lastAccessTime > 0 && currentTimeMillis > (lastAccessTime + expiryInMillis);
             if (isExpired) {
-                removalListeners.forEach(removalListener -> removalListener.onRemoval(Map.entry(entry.getKey(), entry.getValue().getValue())));
-                cacheStatistic.addEviction();
+                notifyRemovalListeners(Map.entry(entry.getKey(), entry.getValue().getValue()));
             }
             return isExpired;
         });
     }
 
-    @Getter
-    @Setter
-    @ToString
-    private static class ValueWrapper {
-        private Object value;
-        private long lastAccessTime;
-        private long accessCount;
-
-        public ValueWrapper(Object value) {
-            this.value = value;
-        }
-
-        public Object getValue() {
-            this.lastAccessTime = System.currentTimeMillis();
-            this.accessCount++;
-            return value;
-        }
+    private void notifyRemovalListeners(Map.Entry<Object, Object> entry) {
+        removalListeners.forEach(removalListener -> removalListener.onRemoval(entry));
     }
 
     private class LruHashMap extends LinkedHashMap<Object, ValueWrapper> {
@@ -89,7 +72,7 @@ public class Cache {
         @Override
         public ValueWrapper remove(Object key) {
             Object value = super.get(key).getValue();
-            removalListeners.forEach(removalListener -> removalListener.onRemoval(Map.entry(key, value)));
+            notifyRemovalListeners(Map.entry(key, value));
             return super.remove(key);
         }
 
@@ -97,8 +80,7 @@ public class Cache {
         protected boolean removeEldestEntry(Map.Entry eldest) {
             boolean isEldest = size() > maximumSize;
             if (isEldest) {
-                removalListeners.forEach(removalListener -> removalListener.onRemoval(eldest));
-                cacheStatistic.addEviction();
+                notifyRemovalListeners(eldest);
             }
             return isEldest;
         }
@@ -119,9 +101,8 @@ public class Cache {
         @Override
         public ValueWrapper put(Object key, ValueWrapper value) {
             if (size() + 1 > maximumSize) {
-                removalListeners.forEach(removalListener -> removalListener.onRemoval(Map.entry(key, value.getValue())));
+                notifyRemovalListeners(Map.entry(key, value.getValue()));
                 remove(keyAccessQueue.poll());
-                cacheStatistic.addEviction();
             }
             keyAccessQueue.add(key);
             return super.put(key, value);
