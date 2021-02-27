@@ -1,4 +1,4 @@
-package com.root;
+package com.root.util;
 
 import java.time.Duration;
 
