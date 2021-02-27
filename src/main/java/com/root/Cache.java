@@ -21,7 +21,7 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 @Slf4j
 public class Cache {
 
-    private final Map<Object, ValueWrapper> cacheMap;
+    private final Map<Object, ValueWrapper> cacheStorage;
     @Getter
     private final CacheStatistic cacheStatistic = new CacheStatistic();
     private final Lock lock = new ReentrantLock();
@@ -31,7 +31,7 @@ public class Cache {
     private final long maximumSize;
 
     protected Cache(CacheBuilder cacheBuilder) {
-        this.cacheMap = cacheBuilder.getCacheType().equals(LRU) ? new LruHashMap() : new LfuHashMap();
+        this.cacheStorage = LRU.equals(cacheBuilder.getCacheType()) ? new LruHashMap() : new LfuHashMap();
         this.expiryInMillis = cacheBuilder.getExpireAfter();
         this.maximumSize = cacheBuilder.getMaximumSize();
         this.removalListeners = cacheBuilder.getRemovalListeners();
@@ -43,7 +43,7 @@ public class Cache {
 
     public Object get(Object key) {
         lock.lock();
-        Object result = ofNullable(this.cacheMap.get(key)).map(ValueWrapper::getValue).orElse(null);
+        Object result = ofNullable(this.cacheStorage.get(key)).map(ValueWrapper::getValue).orElse(null);
         lock.unlock();
         return result;
     }
@@ -51,13 +51,13 @@ public class Cache {
     public void put(Object key, Object value) {
         lock.lock();
         StopWatcher started = StopWatcher.createStarted();
-        this.cacheMap.put(key, new ValueWrapper(value));
+        this.cacheStorage.put(key, new ValueWrapper(value));
         cacheStatistic.puttingDuration(started.stopAndGet());
         lock.unlock();
     }
 
     private void cleanExpired() {
-        cacheMap.entrySet().removeIf(entry -> {
+        cacheStorage.entrySet().removeIf(entry -> {
             long lastAccessTime = entry.getValue().getLastAccessTime();
             boolean isExpired = lastAccessTime > 0 && currentTimeMillis() > (lastAccessTime + expiryInMillis);
             if (isExpired) {
