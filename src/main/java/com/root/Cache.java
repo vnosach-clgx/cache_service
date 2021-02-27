@@ -84,15 +84,18 @@ public class Cache {
     @EqualsAndHashCode(callSuper = false)
     private class LfuHashMap extends LinkedHashMap<Object, ValueWrapper> {
 
-        private final Queue<PriorityKey> keyAccessQueue = new PriorityQueue<>(Comparator.comparing(PriorityKey::getAccessCounter));
+        private final Comparator<PriorityKey> reversed = Comparator.comparing(PriorityKey::getAccessCounter)
+                .thenComparing(PriorityKey::hashCode)
+                .reversed();
+
+        private final TreeSet<PriorityKey> keyAccessQueue= new TreeSet<>(reversed);
 
         @Override
         public ValueWrapper get(Object key) {
             ValueWrapper valueWrapper = super.get(key);
             ofNullable(valueWrapper).map(ValueWrapper::getAccessCounter)
                     .ifPresent(accessCounter -> {
-                        //TODO bad complexity. Need to refactor using hashes
-                        keyAccessQueue.remove(new PriorityKey(0L, key));
+                        keyAccessQueue.remove(new PriorityKey(accessCounter, key));
                         keyAccessQueue.add(new PriorityKey(accessCounter + 1, key));
                     });
 
@@ -102,7 +105,7 @@ public class Cache {
         @Override
         public ValueWrapper put(Object key, ValueWrapper value) {
             if (size() + 1 > maximumSize) {
-                PriorityKey poll = keyAccessQueue.poll();
+                PriorityKey poll = keyAccessQueue.last();
                 notifyRemovalListeners(Map.entry(poll.getKey(), get(poll.getKey()).unwrap()));
                 remove(poll.getKey());
             }
