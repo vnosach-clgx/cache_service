@@ -73,7 +73,7 @@ public class Cache {
 
         @Override
         protected boolean removeEldestEntry(Map.Entry<Object, ValueWrapper> eldest) {
-            boolean isEldest = size() > maximumSize;
+            boolean isEldest = maximumSize > 0 && size() > maximumSize;
             if (isEldest) {
                 notifyRemovalListeners(Map.entry(eldest.getKey(), eldest.getValue().unwrap()));
             }
@@ -88,7 +88,7 @@ public class Cache {
                 .thenComparing(PriorityKey::hashCode)
                 .reversed();
 
-        private final TreeSet<PriorityKey> keyAccessQueue= new TreeSet<>(reversed);
+        private final TreeSet<PriorityKey> keyAccessQueue = new TreeSet<>(reversed);
 
         @Override
         public ValueWrapper get(Object key) {
@@ -104,7 +104,7 @@ public class Cache {
 
         @Override
         public ValueWrapper put(Object key, ValueWrapper value) {
-            if (size() + 1 > maximumSize) {
+            if (maximumSize > 0 && size() + 1 > maximumSize) {
                 PriorityKey rarelyRequestedKey = keyAccessQueue.pollLast();
                 notifyRemovalListeners(Map.entry(rarelyRequestedKey.getKey(), super.get(rarelyRequestedKey.getKey()).unwrap()));
                 remove(rarelyRequestedKey.getKey());

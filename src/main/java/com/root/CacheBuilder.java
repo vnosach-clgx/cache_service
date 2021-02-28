@@ -12,7 +12,7 @@ import static com.root.CacheBuilder.CACHE_TYPE.LRU;
 @Getter
 public class CacheBuilder {
 
-    private long maximumSize = 100_000;
+    private long maximumSize;
     private long expireAfter;
     private CACHE_TYPE cacheType;
     private final List<RemovalListener> removalListeners = new ArrayList<>();
